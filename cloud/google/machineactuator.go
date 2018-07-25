@@ -825,10 +825,11 @@ func (gce *GCEClient) getMetadata(cluster *clusterv1.Cluster, machine *clusterv1
 		}
 	} else {
 		var err error
-		kubeadmToken, err := gce.getKubeadmToken()
-		if err != nil {
-			return nil, err
-		}
+		//kubeadmToken, err := gce.getKubeadmToken()
+		//if err != nil {
+		//	return nil, err
+		//}
+		kubeadmToken := ""
 		metadataMap, err = nodeMetadata(kubeadmToken, cluster, machine, clusterConfig.Project, &machineSetupMetadata)
 		if err != nil {
 			return nil, err

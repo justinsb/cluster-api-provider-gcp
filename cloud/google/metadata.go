@@ -21,6 +21,7 @@ import (
 	"text/template"
 
 	"fmt"
+
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/machinesetup"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 )
@@ -41,14 +42,17 @@ type metadataParams struct {
 
 func nodeMetadata(token string, cluster *clusterv1.Cluster, machine *clusterv1.Machine, project string, metadata *machinesetup.Metadata) (map[string]string, error) {
 	params := metadataParams{
-		Token:          token,
-		Cluster:        cluster,
-		Machine:        machine,
-		Project:        project,
-		Metadata:       metadata,
-		PodCIDR:        getSubnet(cluster.Spec.ClusterNetwork.Pods),
-		ServiceCIDR:    getSubnet(cluster.Spec.ClusterNetwork.Services),
-		MasterEndpoint: getEndpoint(cluster.Status.APIEndpoints[0]),
+		Token:       token,
+		Cluster:     cluster,
+		Machine:     machine,
+		Project:     project,
+		Metadata:    metadata,
+		PodCIDR:     getSubnet(cluster.Spec.ClusterNetwork.Pods),
+		ServiceCIDR: getSubnet(cluster.Spec.ClusterNetwork.Services),
+	}
+
+	if len(cluster.Status.APIEndpoints) != 0 {
+		params.MasterEndpoint = getEndpoint(cluster.Status.APIEndpoints[0])
 	}
 
 	nodeMetadata := map[string]string{}

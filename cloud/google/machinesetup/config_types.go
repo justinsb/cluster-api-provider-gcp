@@ -25,6 +25,7 @@ import (
 	"reflect"
 
 	"github.com/ghodss/yaml"
+	"github.com/golang/glog"
 	gceconfigv1 "sigs.k8s.io/cluster-api-provider-gcp/cloud/google/gceproviderconfig/v1alpha1"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 )
@@ -132,14 +133,17 @@ func (vc *ValidConfigs) matchMachineSetupConfig(params *ConfigParams) (*config, 
 	for _, conf := range vc.configList.Items {
 		for _, validParams := range conf.Params {
 			if params.OS != validParams.OS {
+				glog.Infof("mismatch on os")
 				continue
 			}
 			validRoles := rolesToMap(validParams.Roles)
 			paramRoles := rolesToMap(params.Roles)
 			if !reflect.DeepEqual(paramRoles, validRoles) {
+				glog.Infof("mismatch on roles")
 				continue
 			}
 			if params.Versions != validParams.Versions {
+				glog.Infof("mismatch on version")
 				continue
 			}
 			matchingConfigs = append(matchingConfigs, conf)
