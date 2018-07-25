@@ -49,6 +49,7 @@ func main() {
 	defer logs.FlushLogs()
 
 	if controllerType == "machine" {
+		// TODO: Fail if machineSetupConfigsPath not set?
 		machineServer := machineoptions.NewMachineControllerServer(machineSetupConfigsPath)
 		if err := machine_controller_app.RunMachineController(machineServer); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to start machine controller. Err: %v\n", err)

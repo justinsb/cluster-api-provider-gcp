@@ -58,7 +58,7 @@ func StartMachineController(server *options.MachineControllerServer, recorder re
 
 	configWatch, err := machinesetup.NewConfigWatch(server.MachineSetupConfigsPath)
 	if err != nil {
-		glog.Fatalf("Could not create config watch: %v", err)
+		glog.Fatalf("Could not create config watch on %q: %v", server.MachineSetupConfigsPath, err)
 	}
 	params := google.MachineActuatorParams{
 		V1Alpha1Client:           client.ClusterV1alpha1(),
