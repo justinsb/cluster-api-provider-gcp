@@ -19,5 +19,31 @@ go_library(
 go_binary(
     name = "gce-controller",
     embed = [":go_default_library"],
+    # pure is the equivalent of CGO_ENABLED=0 and means we don't depend on libstdc++
+    pure = "on",
+    # static means we don't depend on libc
+    static = "on",
     visibility = ["//visibility:public"],
+)
+
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_image",
+    "container_push",
+)
+
+container_image(
+    name = "image-gce-controller",
+    base = "@go_base//image",
+    cmd = ["/gce-controller"],
+    files = [":gce-controller"],
+)
+
+container_push(
+    name = "push-image-gce-controller",
+    format = "Docker",
+    image = ":image-gce-controller",
+    registry = "gcr.io",
+    repository = "justinsb-cloud-kubernetes-test/machine-controller-gcp",
+    tag = "latest",
 )
