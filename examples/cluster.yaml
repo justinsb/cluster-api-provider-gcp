@@ -1,0 +1,27 @@
+apiVersion: cluster.k8s.io/v1alpha1
+kind: Cluster
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"cluster.k8s.io/v1alpha1","kind":"Cluster","metadata":{"annotations":{},"name":"cluster-example","namespace":"kube-system"},"spec":{}}
+  creationTimestamp: 2018-07-25T20:54:21Z
+  generation: 1
+  name: cluster-example
+  namespace: kube-system
+  resourceVersion: "1979839"
+  selfLink: /apis/cluster.k8s.io/v1alpha1/namespaces/kube-system/clusters/cluster-example
+  uid: e80e5c99-904c-11e8-a9fc-42010a960002
+spec:
+  clusterNetwork:
+    services:
+      cidrBlocks:
+      - 10.0.0.0/16
+  providerConfig:
+    value:
+      apiVersion: gceproviderconfig/v1alpha1
+      kind: GCEClusterProviderConfig
+      project: justinsb-cloud-kubernetes-test
+status:
+  apiEndpoints:
+  - host: 35.236.196.143
+    port: 443

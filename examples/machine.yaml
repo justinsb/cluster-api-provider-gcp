@@ -1,0 +1,26 @@
+apiVersion: cluster.k8s.io/v1alpha1
+kind: Machine
+metadata:
+  labels:
+    foo: bar
+  name: sample-machinedeployment-569d64dd54-rcg5j
+  namespace: kube-system
+spec:
+  providerConfig:
+    value:
+      apiVersion: gceproviderconfig/v1alpha1
+      disks:
+      - initializeParams:
+          diskSizeGb: 30
+          diskType: pd-standard
+      kind: GCEMachineProviderConfig
+      machineType: n1-standard-2
+      os: ubuntu-1604-lts
+      roles:
+      - Node
+      zone: us-east4-a
+  versions:
+    kubelet: 1.9.4
+status:
+  lastUpdated: null
+  providerStatus: null

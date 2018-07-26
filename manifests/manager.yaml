@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: gcp-machine-controller
+  name: gcp-machine-controller
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gcp-machine-controller
+  namespace: kube-system
+  labels:
+    k8s-app: gcp-machine-controller
+spec:
+  selector:
+    matchLabels:
+      k8s-app: gcp-machine-controller
+      component: gcp-machine-controller
+  template:
+    metadata:
+      labels:
+        k8s-app: gcp-machine-controller
+        component: gcp-machine-controller
+    spec:
+      containers:
+      - command:
+        - /gce-controller
+        - --controller=machine
+        - --machinesetup=/configs
+        name: manager
+        image: gcr.io/justinsb-cloud-kubernetes-test/machine-controller-gcp:latest
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - name: configmap-machine-controller-gcp
+          mountPath: /configmap-machine-controller-gcp
+      hostNetwork: true
+      serviceAccount: gcp-machine-controller
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: configmap-machine-controller-gcp
+        configMap:
+          name: machine-controller-gcp
+

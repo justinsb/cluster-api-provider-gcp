@@ -1,0 +1,141 @@
+items:
+    - machineParams:
+      - os: ubuntu-1604-lts
+        roles:
+        - Node
+        versions:
+          kubelet: 1.9.4
+      image: projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts
+      metadata:
+        startupScript: |
+          set -e
+          set -x
+          (
+          apt-get update
+          apt-get install -y apt-transport-https prips
+          apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv-keys F76221572C52609D
+          cat <<EOF > /etc/apt/sources.list.d/k8s.list
+          deb [arch=amd64] https://apt.dockerproject.org/repo ubuntu-xenial main
+          EOF
+          apt-get update
+
+          function curl_metadata() {
+              curl  --retry 5 --silent --fail --header "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/$@"
+          }
+
+          function install_certificates () {
+              if ! curl_metadata "attributes/ca-cert"; then
+                  return
+              fi
+              echo "Configuring custom certificate authority..."
+              PKI_PATH=/etc/kubernetes/pki
+              mkdir -p ${PKI_PATH}
+              CA_CERT_PATH=${PKI_PATH}/ca.crt
+              curl_metadata "attributes/ca-cert" | base64 -d > ${CA_CERT_PATH}
+              chmod 0644 ${CA_CERT_PATH}
+          }
+
+          install_certificates
+
+          function install_configure_docker () {
+              # prevent docker from auto-starting
+              echo "exit 101" > /usr/sbin/policy-rc.d
+              chmod +x /usr/sbin/policy-rc.d
+              trap "rm /usr/sbin/policy-rc.d" RETURN
+              apt-get install -y docker-engine=1.12.0-0~xenial
+              echo 'DOCKER_OPTS="--iptables=false --ip-masq=false"' > /etc/default/docker
+              systemctl daemon-reload
+              systemctl enable docker
+              systemctl start docker
+          }
+
+          install_configure_docker
+
+          curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+          cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
+          deb http://apt.kubernetes.io/ kubernetes-xenial main
+          EOF
+          apt-get update
+
+          mkdir -p /etc/kubernetes/
+          cat > /etc/kubernetes/cloud-config <<EOF
+          [global]
+          project-id = ${PROJECT}
+          network-name = ${NETWORK}
+          subnetwork-name = ${SUBNETWORK}
+          node-tags = ${NODE_TAG}
+          EOF
+
+          cat > /etc/kubernetes/bootstrap-kubelet.conf <<EOF
+          apiVersion: v1
+          kind: Config
+          users:
+            - name: kubelet
+              user:
+                token: ${TOKEN}
+          clusters:
+          - name: local
+            cluster:
+              server: https://${MASTER}
+              certificate-authority: /etc/kubernetes/pki/ca.crt
+          contexts:
+          - context:
+              cluster: local
+              user: kubelet
+            name: service-account-context
+          current-context: service-account-context
+          EOF
+
+          # Our Debian packages have versions like "1.8.0-00" or "1.8.0-01". Do a prefix
+          # search based on our SemVer to find the right (newest) package version.
+          function getversion() {
+          	name=$1
+          	prefix=$2
+          	version=$(apt-cache madison $name | awk '{ print $3 }' | grep ^$prefix | head -n1)
+          	if [[ -z "$version" ]]; then
+          		echo Can\'t find package $name with prefix $prefix
+          		exit 1
+          	fi
+          	echo $version
+          }
+          KUBELET=$(getversion kubelet ${KUBELET_VERSION}-)
+          #KUBEADM=$(getversion kubeadm ${KUBELET_VERSION}-)
+          KUBECTL=$(getversion kubectl ${KUBELET_VERSION}-)
+          #apt-get install -y kubelet=${KUBELET} kubeadm=${KUBEADM} kubectl=${KUBECTL}
+          apt-get install -y kubelet=${KUBELET} kubectl=${KUBECTL}
+          # kubeadm uses 10th IP as DNS server
+          CLUSTER_DNS_SERVER=$(prips ${SERVICE_CIDR} | head -n 11 | tail -n 1)
+
+          mkdir -p /etc/systemd/system/kubelet.service.d/
+          # Note: literal heredoc
+          cat > /etc/systemd/system/kubelet.service.d/10-server.conf <<'EOF'
+          # Note: Specific to k8s 1.9
+          [Service]
+          Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+          Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true"
+          Environment="KUBELET_NETWORK_ARGS=--network-plugin=cni --cni-conf-dir=/etc/cni/net.d --cni-bin-dir=/opt/cni/bin"
+          Environment="KUBELET_DNS_ARGS=--cluster-dns=10.96.0.10 --cluster-domain=cluster.local"
+          Environment="KUBELET_AUTHZ_ARGS=--authorization-mode=Webhook --client-ca-file=/etc/kubernetes/pki/ca.crt"
+          Environment="KUBELET_CADVISOR_ARGS=--cadvisor-port=0"
+          Environment="KUBELET_CERTIFICATE_ARGS=--rotate-certificates=true --cert-dir=/var/lib/kubelet/pki"
+          ExecStart=
+          ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_SYSTEM_PODS_ARGS $KUBELET_NETWORK_ARGS $KUBELET_DNS_ARGS $KUBELET_AUTHZ_ARGS $KUBELET_CADVISOR_ARGS $KUBELET_CERTIFICATE_ARGS $KUBELET_EXTRA_ARGS
+          EOF
+          
+          # Override network args to use kubenet instead of cni, override Kubelet DNS args and
+          # add cloud provider args.
+          cat > /etc/systemd/system/kubelet.service.d/20-kubenet.conf <<EOF
+          [Service]
+          #Environment="KUBELET_NETWORK_ARGS=--network-plugin=kubenet"
+          Environment="KUBELET_DNS_ARGS=--cluster-dns=${CLUSTER_DNS_SERVER} --cluster-domain=${CLUSTER_DNS_DOMAIN}"
+          Environment="KUBELET_EXTRA_ARGS=--cloud-provider=gce --cloud-config=/etc/kubernetes/cloud-config"
+          EOF
+          systemctl daemon-reload
+          systemctl restart kubelet.service
+          #kubeadm join --token "${TOKEN}" "${MASTER}" --ignore-preflight-errors=all --discovery-token-unsafe-skip-ca-verification
+          for tries in $(seq 1 60); do
+          	kubectl --kubeconfig /etc/kubernetes/kubelet.conf annotate --overwrite node $(hostname) machine=${MACHINE} && break
+          	sleep 1
+          done
+          echo done.
+          ) 2>&1 | tee /var/log/startup.log
