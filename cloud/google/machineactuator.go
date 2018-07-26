@@ -267,7 +267,7 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 			labels[BootstrapLabelKey] = "true"
 		}
 
-		op, err := gce.computeService.InstancesInsert(project, zone, &compute.Instance{
+		instance := &compute.Instance{
 			Name:         name,
 			MachineType:  fmt.Sprintf("zones/%s/machineTypes/%s", zone, machineConfig.MachineType),
 			CanIpForward: true,
@@ -298,8 +298,10 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 					},
 				},
 			},
-		})
+		}
+		glog.Infof("creating GCE machine in %s/%s: %+v", project, zone, instance)
 
+		op, err := gce.computeService.InstancesInsert(project, zone, instance)
 		if err == nil {
 			err = gce.computeService.WaitForOperation(clusterConfig.Project, op)
 		}
