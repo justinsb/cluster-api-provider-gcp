@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/clients"
 	gceconfigv1 "sigs.k8s.io/cluster-api-provider-gcp/cloud/google/gceproviderconfig/v1alpha1"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/machinesetup"
+	"sigs.k8s.io/cluster-api-provider-gcp/pkg/bootstrap"
 	clustercommon "sigs.k8s.io/cluster-api/pkg/apis/cluster/common"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/pkg/cert"
@@ -105,9 +106,11 @@ type GCEClient struct {
 	v1Alpha1Client           client.ClusterV1alpha1Interface
 	machineSetupConfigGetter GCEClientMachineSetupConfigGetter
 	eventRecorder            record.EventRecorder
+	bootstrapTokens          bootstrap.Tokens
 }
 
 type MachineActuatorParams struct {
+	BootstrapTokens          bootstrap.Tokens
 	CertificateAuthority     *cert.CertificateAuthority
 	ComputeService           GCEClientComputeService
 	Kubeadm                  GCEClientKubeadm
@@ -147,6 +150,7 @@ func NewMachineActuator(params MachineActuatorParams) (*GCEClient, error) {
 	}
 
 	return &GCEClient{
+		bootstrapTokens:        params.BootstrapTokens,
 		certificateAuthority:   params.CertificateAuthority,
 		computeService:         computeService,
 		kubeadm:                getOrNewKubeadm(params),
@@ -773,6 +777,10 @@ func (gce *GCEClient) getKubeadmToken() (string, error) {
 	return strings.TrimSpace(output), err
 }
 
+func (gce *GCEClient) getBootstrapToken() (string, error) {
+	return gce.bootstrapTokens.GetBootstrapToken()
+}
+
 func getOrNewKubeadm(params MachineActuatorParams) GCEClientKubeadm {
 	if params.Kubeadm == nil {
 		return kubeadm.New()
@@ -828,13 +836,17 @@ func (gce *GCEClient) getMetadata(cluster *clusterv1.Cluster, machine *clusterv1
 	} else {
 		var err error
 		//kubeadmToken, err := gce.getKubeadmToken()
-		//if err != nil {
-		//	return nil, err
-		//}
-		kubeadmToken := ""
+		kubeadmToken, err := gce.getBootstrapToken()
+		if err != nil {
+			return nil, err
+		}
 		metadataMap, err = nodeMetadata(kubeadmToken, cluster, machine, clusterConfig.Project, &machineSetupMetadata)
 		if err != nil {
 			return nil, err
+		}
+		ca := gce.certificateAuthority
+		if ca != nil && ca.Certificate != nil {
+			metadataMap["ca-cert"] = base64.StdEncoding.EncodeToString(ca.Certificate)
 		}
 	}
 	var metadataItems []*compute.MetadataItems

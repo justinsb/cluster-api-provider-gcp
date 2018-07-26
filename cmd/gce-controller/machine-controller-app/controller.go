@@ -17,7 +17,9 @@ limitations under the License.
 package machine_controller_app
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/kubernetes-incubator/apiserver-builder/pkg/controller"
@@ -34,6 +36,8 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/machinesetup"
 	"sigs.k8s.io/cluster-api-provider-gcp/cmd/gce-controller/machine-controller-app/options"
+	"sigs.k8s.io/cluster-api-provider-gcp/pkg/bootstrap"
+	"sigs.k8s.io/cluster-api/pkg/cert"
 	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
 	clusterapiclientsetscheme "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/scheme"
 	"sigs.k8s.io/cluster-api/pkg/controller/config"
@@ -45,7 +49,7 @@ const (
 	gceMachineControllerName = "gce-controller"
 )
 
-func StartMachineController(server *options.MachineControllerServer, recorder record.EventRecorder, shutdown <-chan struct{}) {
+func StartMachineController(server *options.MachineControllerServer, recorder record.EventRecorder, bootstrapTokens bootstrap.Tokens, shutdown <-chan struct{}) {
 	config, err := controller.GetConfig(server.CommonConfig.Kubeconfig)
 	if err != nil {
 		glog.Fatalf("Could not create Config for talking to the apiserver: %v", err)
@@ -60,10 +64,16 @@ func StartMachineController(server *options.MachineControllerServer, recorder re
 	if err != nil {
 		glog.Fatalf("Could not create config watch on %q: %v", server.MachineSetupConfigsPath, err)
 	}
+
+	certificateAuthority := &cert.CertificateAuthority{}
+	certificateAuthority.Certificate = config.CAData
+
 	params := google.MachineActuatorParams{
 		V1Alpha1Client:           client.ClusterV1alpha1(),
 		MachineSetupConfigGetter: configWatch,
 		EventRecorder:            recorder,
+		BootstrapTokens:          bootstrapTokens,
+		CertificateAuthority:     certificateAuthority,
 	}
 	actuator, err := google.NewMachineActuator(params)
 
@@ -101,9 +111,16 @@ func RunMachineController(server *options.MachineControllerServer) error {
 		return err
 	}
 
+	// TODO: Reduce when we're not debugging...
+	tokenTTL := 24 * time.Hour
+	bootstrapTokens, err := bootstrap.NewTokens(clientSet, tokenTTL)
+	if err != nil {
+		return fmt.Errorf("error creating bootstrap tokens store: %v", err)
+	}
+
 	// run function will block and never return.
 	run := func(stop <-chan struct{}) {
-		StartMachineController(server, recorder, stop)
+		StartMachineController(server, recorder, bootstrapTokens, stop)
 	}
 
 	leaderElectConfig := config.GetLeaderElectionConfig()
