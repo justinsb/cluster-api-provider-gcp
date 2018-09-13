@@ -77,12 +77,6 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
-  name = "github.com/google/uuid"
-  packages = ["."]
-  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
-  version = "v1.0.0"
-
-[[projects]]
   name = "github.com/googleapis/gnostic"
   packages = [
     "OpenAPIv2",
@@ -139,12 +133,6 @@
   packages = ["."]
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
-
-[[projects]]
-  name = "github.com/pborman/uuid"
-  packages = ["."]
-  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
-  version = "v1.2"
 
 [[projects]]
   branch = "master"
@@ -388,7 +376,6 @@
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
-    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -447,16 +434,17 @@
     "pkg/apis/clientauthentication/v1beta1",
     "pkg/version",
     "plugin/pkg/client/auth/exec",
+    "plugin/pkg/client/auth/gcp",
     "rest",
     "rest/watch",
     "restmapper",
+    "third_party/forked/golang/template",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
     "tools/clientcmd/api",
     "tools/clientcmd/api/latest",
     "tools/clientcmd/api/v1",
-    "tools/leaderelection",
     "tools/leaderelection/resourcelock",
     "tools/metrics",
     "tools/pager",
@@ -470,6 +458,7 @@
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
+    "util/jsonpath",
     "util/retry",
     "util/workqueue"
   ]
@@ -516,6 +505,7 @@
     "clusterctl/cmd",
     "clusterctl/providercomponents",
     "clusterctl/validation",
+    "pkg/apis",
     "pkg/apis/cluster/common",
     "pkg/apis/cluster/v1alpha1",
     "pkg/cert",
@@ -534,7 +524,7 @@
     "pkg/test-cmd-runner",
     "pkg/util"
   ]
-  revision = "110805603ed1685991acb3b00550b416947d3bca"
+  revision = "b9b8b9b0c6f0517827c0ede438e6535ca8446817"
   source = "https://github.com/justinsb/cluster-api.git"
 
 [[projects]]
@@ -544,6 +534,7 @@
     "pkg/cache/internal",
     "pkg/client",
     "pkg/client/apiutil",
+    "pkg/client/config",
     "pkg/controller",
     "pkg/event",
     "pkg/handler",
@@ -556,6 +547,7 @@
     "pkg/runtime/inject",
     "pkg/runtime/log",
     "pkg/runtime/scheme",
+    "pkg/runtime/signals",
     "pkg/source",
     "pkg/source/internal"
   ]
@@ -565,6 +557,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3406e5dc0b4b5eb9e8a14176a205e85ed358b89f4bc1a17e28624a88e9e8d459"
+  inputs-digest = "4cbbbcc46d403e5e5b9c1d312821060804808026c3eabdc7f51e1245fbb5f746"
   solver-name = "gps-cdcl"
   solver-version = 1
