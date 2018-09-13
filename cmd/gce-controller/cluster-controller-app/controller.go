@@ -17,33 +17,30 @@ limitations under the License.
 package cluster_controller_app
 
 import (
-	"os"
+	"fmt"
 
-	"github.com/golang/glog"
-	"github.com/kubernetes-incubator/apiserver-builder/pkg/controller"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google"
-	"sigs.k8s.io/cluster-api-provider-gcp/cmd/gce-controller/cluster-controller-app/options"
-	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
-	clusterapiclientsetscheme "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/scheme"
-	"sigs.k8s.io/cluster-api/pkg/controller/cluster"
-	"sigs.k8s.io/cluster-api/pkg/controller/config"
-	"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
+	clustercontroller "sigs.k8s.io/cluster-api/pkg/controller/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const (
 	gceClusterControllerName = "gce-cluster-controller"
 )
 
+func AddToManager(mgr manager.Manager) error {
+	params := google.ClusterActuatorParams{
+		ClusterClient: mgr.GetClient(),
+	}
+	actuator, err := google.NewClusterActuator(params)
+	if err != nil {
+		return fmt.Errorf("Could not create Google cluster actuator: %v", err)
+	}
+
+	return clustercontroller.AddWithActuator(mgr, actuator)
+}
+
+/*
 func StartClusterController(server *options.ClusterControllerServer, shutdown <-chan struct{}) {
 	config, err := controller.GetConfig(server.CommonConfig.Kubeconfig)
 	if err != nil {
@@ -63,6 +60,7 @@ func StartClusterController(server *options.ClusterControllerServer, shutdown <-
 		glog.Fatalf("Could not create Google cluster actuator: %v", err)
 	}
 
+	// Get a config to talk to the apiserver
 	si := sharedinformers.NewSharedInformers(config, shutdown)
 	// If this doesn't compile, the code generator probably
 	// overwrote the customized NewClusterController function.
@@ -158,3 +156,4 @@ func createRecorder(kubeClient *kubernetes.Clientset) (record.EventRecorder, err
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
 	return eventBroadcaster.NewRecorder(eventsScheme, corev1.EventSource{Component: gceClusterControllerName}), nil
 }
+*/

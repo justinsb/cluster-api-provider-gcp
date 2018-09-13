@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +41,8 @@ func (gce *GCEClient) instanceStatus(machine *clusterv1.Machine) (instanceStatus
 	if gce.v1Alpha1Client == nil {
 		return nil, nil
 	}
-	currentMachine, err := util.GetMachineIfExists(gce.v1Alpha1Client.Machines(machine.Namespace), machine.ObjectMeta.Name)
+	// TODO: Namespace
+	currentMachine, err := util.GetMachineIfExists(gce.v1Alpha1Client, machine.ObjectMeta.Namespace, machine.ObjectMeta.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +56,13 @@ func (gce *GCEClient) instanceStatus(machine *clusterv1.Machine) (instanceStatus
 
 // Sets the status of the instance identified by the given machine to the given machine
 func (gce *GCEClient) updateInstanceStatus(machine *clusterv1.Machine) error {
+	ctx := context.TODO()
+
 	if gce.v1Alpha1Client == nil {
 		return nil
 	}
 	status := instanceStatus(machine)
-	currentMachine, err := util.GetMachineIfExists(gce.v1Alpha1Client.Machines(machine.Namespace), machine.ObjectMeta.Name)
+	currentMachine, err := util.GetMachineIfExists(gce.v1Alpha1Client, machine.ObjectMeta.Namespace, machine.ObjectMeta.Name)
 	if err != nil {
 		return err
 	}
@@ -73,7 +77,7 @@ func (gce *GCEClient) updateInstanceStatus(machine *clusterv1.Machine) error {
 		return err
 	}
 
-	_, err = gce.v1Alpha1Client.Machines(machine.Namespace).Update(m)
+	err = gce.v1Alpha1Client.Update(ctx, m)
 	return err
 }
 

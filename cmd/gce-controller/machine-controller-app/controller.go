@@ -17,34 +17,43 @@ limitations under the License.
 package machine_controller_app
 
 import (
-	"os"
-
-	"github.com/golang/glog"
-	"github.com/kubernetes-incubator/apiserver-builder/pkg/controller"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google"
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/machinesetup"
 	"sigs.k8s.io/cluster-api-provider-gcp/cmd/gce-controller/machine-controller-app/options"
-	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
-	clusterapiclientsetscheme "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/scheme"
-	"sigs.k8s.io/cluster-api/pkg/controller/config"
-	"sigs.k8s.io/cluster-api/pkg/controller/machine"
-	"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
+	machinecontroller "sigs.k8s.io/cluster-api/pkg/controller/machine"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
+
+//"github.com/kubernetes-incubator/apiserver-builder/pkg/controller"
+
+//"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
 
 const (
 	gceMachineControllerName = "gce-controller"
 )
 
+func AddToManager(mgr manager.Manager, server *options.MachineControllerServer) error {
+	recorder := mgr.GetRecorder(gceMachineControllerName)
+
+	configWatch, err := machinesetup.NewConfigWatch(server.MachineSetupConfigsPath)
+	if err != nil {
+		return err
+	}
+
+	params := google.MachineActuatorParams{
+		V1Alpha1Client:           mgr.GetClient(),
+		MachineSetupConfigGetter: configWatch,
+		EventRecorder:            recorder,
+	}
+	actuator, err := google.NewMachineActuator(params)
+	if err != nil {
+		return err
+	}
+
+	return machinecontroller.AddWithActuator(mgr, actuator)
+}
+
+/*
 func StartMachineController(server *options.MachineControllerServer, recorder record.EventRecorder, shutdown <-chan struct{}) {
 	config, err := controller.GetConfig(server.CommonConfig.Kubeconfig)
 	if err != nil {
@@ -164,3 +173,4 @@ func createRecorder(kubeClient *kubernetes.Clientset) (record.EventRecorder, err
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
 	return eventBroadcaster.NewRecorder(eventsScheme, corev1.EventSource{Component: gceMachineControllerName}), nil
 }
+*/

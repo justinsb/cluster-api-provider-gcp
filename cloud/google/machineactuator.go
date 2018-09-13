@@ -47,10 +47,11 @@ import (
 	clustercommon "sigs.k8s.io/cluster-api/pkg/apis/cluster/common"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/pkg/cert"
-	client "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/typed/cluster/v1alpha1"
+	//client "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/typed/cluster/v1alpha1"
 	apierrors "sigs.k8s.io/cluster-api/pkg/errors"
 	"sigs.k8s.io/cluster-api/pkg/kubeadm"
 	"sigs.k8s.io/cluster-api/pkg/util"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -102,7 +103,7 @@ type GCEClient struct {
 	codecFactory             *serializer.CodecFactory
 	serviceAccountService    *ServiceAccountService
 	sshCreds                 SshCreds
-	v1Alpha1Client           client.ClusterV1alpha1Interface
+	v1Alpha1Client           client.Client
 	machineSetupConfigGetter GCEClientMachineSetupConfigGetter
 	eventRecorder            record.EventRecorder
 }
@@ -111,7 +112,7 @@ type MachineActuatorParams struct {
 	CertificateAuthority     *cert.CertificateAuthority
 	ComputeService           GCEClientComputeService
 	Kubeadm                  GCEClientKubeadm
-	V1Alpha1Client           client.ClusterV1alpha1Interface
+	V1Alpha1Client           client.Client
 	MachineSetupConfigGetter GCEClientMachineSetupConfigGetter
 	EventRecorder            record.EventRecorder
 }
@@ -546,6 +547,8 @@ func isMaster(roles []gceconfigv1.MachineRole) bool {
 }
 
 func (gce *GCEClient) updateAnnotations(cluster *clusterv1.Cluster, machine *clusterv1.Machine) error {
+	ctx := context.TODO()
+
 	machineConfig, err := gce.machineproviderconfig(machine.Spec.ProviderConfig)
 	name := machine.ObjectMeta.Name
 	zone := machineConfig.Zone
@@ -567,7 +570,7 @@ func (gce *GCEClient) updateAnnotations(cluster *clusterv1.Cluster, machine *clu
 	machine.ObjectMeta.Annotations[ProjectAnnotationKey] = project
 	machine.ObjectMeta.Annotations[ZoneAnnotationKey] = zone
 	machine.ObjectMeta.Annotations[NameAnnotationKey] = name
-	_, err = gce.v1Alpha1Client.Machines(machine.Namespace).Update(machine)
+	err = gce.v1Alpha1Client.Update(ctx, machine)
 	if err != nil {
 		return err
 	}
@@ -691,7 +694,8 @@ func (gce *GCEClient) handleMachineError(machine *clusterv1.Machine, err *apierr
 		message := err.Message
 		machine.Status.ErrorReason = &reason
 		machine.Status.ErrorMessage = &message
-		gce.v1Alpha1Client.Machines(machine.Namespace).UpdateStatus(machine)
+		panic("UpdateStatus not implemented")
+		//gce.v1Alpha1Client.UpdateStatus(machine)
 	}
 
 	if eventAction != noEventAction {

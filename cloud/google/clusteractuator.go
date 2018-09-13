@@ -18,6 +18,7 @@ package google
 
 import (
 	"fmt"
+
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -26,7 +27,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-gcp/cloud/google/clients/errors"
 	gceconfigv1 "sigs.k8s.io/cluster-api-provider-gcp/cloud/google/gceproviderconfig/v1alpha1"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
-	client "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/typed/cluster/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -37,13 +38,13 @@ const (
 
 type GCEClusterClient struct {
 	computeService         GCEClientComputeService
-	clusterClient          client.ClusterInterface
+	clusterClient          client.Client
 	gceProviderConfigCodec *gceconfigv1.GCEProviderConfigCodec
 }
 
 type ClusterActuatorParams struct {
 	ComputeService GCEClientComputeService
-	ClusterClient  client.ClusterInterface
+	ClusterClient  client.Client
 }
 
 func NewClusterActuator(params ClusterActuatorParams) (*GCEClusterClient, error) {
@@ -126,6 +127,10 @@ func getOrNewComputeServiceForCluster(params ClusterActuatorParams) (GCEClientCo
 }
 
 func (gce *GCEClusterClient) createFirewallRuleIfNotExists(cluster *clusterv1.Cluster, firewallRule *compute.Firewall) error {
+	ctx := context.TODO()
+
+	glog.Infof("ensuring firewall rule %+v", firewallRule)
+
 	ruleExists, ok := cluster.ObjectMeta.Annotations[firewallRuleAnnotationPrefix+firewallRule.Name]
 	if ok && ruleExists == "true" {
 		// The firewall rule was already created.
@@ -155,7 +160,7 @@ func (gce *GCEClusterClient) createFirewallRuleIfNotExists(cluster *clusterv1.Cl
 		cluster.ObjectMeta.Annotations = make(map[string]string)
 	}
 	cluster.ObjectMeta.Annotations[firewallRuleAnnotationPrefix+firewallRule.Name] = "true"
-	_, err = gce.clusterClient.Update(cluster)
+	err = gce.clusterClient.Update(ctx, cluster)
 	if err != nil {
 		return fmt.Errorf("error updating cluster annotations %v", err)
 	}
