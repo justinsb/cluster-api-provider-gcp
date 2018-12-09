@@ -23,7 +23,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: controller-manager
+  name: controller
   namespace: system
   labels:
     control-plane: controller-manager
@@ -68,6 +68,7 @@ spec:
         - mountPath: /tmp/cert
           name: cert
           readOnly: true
+      serviceAccountName: controller
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
