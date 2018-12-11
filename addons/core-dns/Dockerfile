@@ -13,5 +13,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager sigs.k8s.io/clu
 # Copy the controller-manager into a thin image
 FROM ubuntu:latest
 WORKDIR /
+ADD https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kubectl /bin/kubectl
+RUN chmod a+x /bin/kubectl
 COPY --from=builder /go/src/sigs.k8s.io/cluster-api-provider-gcp/addons/core-dns/manager .
+COPY channels/ /channels/
 ENTRYPOINT ["/manager"]
