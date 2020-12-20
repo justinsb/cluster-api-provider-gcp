@@ -165,58 +165,62 @@ func (r *GCPClusterReconciler) reconcile(clusterScope *scope.ClusterScope) (ctrl
 
 	computeSvc := compute.NewService(clusterScope)
 
-	if err := computeSvc.ReconcileNetwork(); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile network for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
-	}
 
-	if err := computeSvc.ReconcileFirewalls(); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile firewalls for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
-	}
+		if err := computeSvc.ReconcileNetwork(); err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile network for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
+		}
+		
+		if false {
 
-	if err := computeSvc.ReconcileInstanceGroups(); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile instance groups for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
-	}
+		if err := computeSvc.ReconcileFirewalls(); err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile firewalls for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
+		}
 
-	if err := computeSvc.ReconcileLoadbalancers(); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile load balancers for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
-	}
+		if err := computeSvc.ReconcileInstanceGroups(); err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile instance groups for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
+		}
 
-	if gcpCluster.Status.Network.APIServerAddress == nil {
-		clusterScope.Info("Waiting on API server Global IP Address")
+		if err := computeSvc.ReconcileLoadbalancers(); err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile load balancers for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
+		}
 
-		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
-	}
+		if gcpCluster.Status.Network.APIServerAddress == nil {
+			clusterScope.Info("Waiting on API server Global IP Address")
 
-	// Set APIEndpoints so the Cluster API Cluster Controller can pull them
-	gcpCluster.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
-		Host: *gcpCluster.Status.Network.APIServerAddress,
-		Port: 443,
-	}
+			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		}
 
-	// Set FailureDomains on the GCPCluster Status
-	zones, err := computeSvc.GetZones()
-	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to get available zones for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
-	}
+		// Set APIEndpoints so the Cluster API Cluster Controller can pull them
+		gcpCluster.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
+			Host: *gcpCluster.Status.Network.APIServerAddress,
+			Port: 443,
+		}
 
-	// FailureDomains list should be empty by default.
-	gcpCluster.Status.FailureDomains = make(clusterv1.FailureDomains, len(zones))
+		// Set FailureDomains on the GCPCluster Status
+		zones, err := computeSvc.GetZones()
+		if err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "failed to get available zones for GCPCluster %s/%s", gcpCluster.Namespace, gcpCluster.Name)
+		}
 
-	// Iterate through all zones
-	for _, zone := range zones {
-		// If we have failuredomains in spec, see if this zone is in valid zone
-		// Add to the status _only_ if it's mentioned in the gcpCluster spec
-		if len(gcpCluster.Spec.FailureDomains) > 0 {
-			for _, fd := range gcpCluster.Spec.FailureDomains {
-				if fd == zone {
-					gcpCluster.Status.FailureDomains[zone] = clusterv1.FailureDomainSpec{
-						ControlPlane: true,
+		// FailureDomains list should be empty by default.
+		gcpCluster.Status.FailureDomains = make(clusterv1.FailureDomains, len(zones))
+
+		// Iterate through all zones
+		for _, zone := range zones {
+			// If we have failuredomains in spec, see if this zone is in valid zone
+			// Add to the status _only_ if it's mentioned in the gcpCluster spec
+			if len(gcpCluster.Spec.FailureDomains) > 0 {
+				for _, fd := range gcpCluster.Spec.FailureDomains {
+					if fd == zone {
+						gcpCluster.Status.FailureDomains[zone] = clusterv1.FailureDomainSpec{
+							ControlPlane: true,
+						}
 					}
 				}
-			}
-		} else {
-			gcpCluster.Status.FailureDomains[zone] = clusterv1.FailureDomainSpec{
-				ControlPlane: true,
+			} else {
+				gcpCluster.Status.FailureDomains[zone] = clusterv1.FailureDomainSpec{
+					ControlPlane: true,
+				}
 			}
 		}
 	}

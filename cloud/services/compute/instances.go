@@ -18,6 +18,7 @@ package compute
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
@@ -66,6 +67,8 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*compute.Instance, 
 		return nil, err
 	}
 
+	clusterTag := strings.ReplaceAll(scope.Cluster.Name, ".", "-")
+
 	input := &compute.Instance{
 		Name:         scope.Name(),
 		Zone:         scope.Zone(),
@@ -77,8 +80,8 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*compute.Instance, 
 		Tags: &compute.Tags{
 			Items: append(
 				scope.GCPMachine.Spec.AdditionalNetworkTags,
-				fmt.Sprintf("%s-%s", scope.Cluster.Name, scope.Role()),
-				scope.Cluster.Name,
+				fmt.Sprintf("%s-%s", clusterTag, scope.Role()),
+				clusterTag,
 			),
 		},
 		Disks: []*compute.AttachedDisk{
@@ -128,7 +131,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*compute.Instance, 
 	}
 
 	input.Labels = infrav1.Build(infrav1.BuildParams{
-		ClusterName: s.scope.Name(),
+		ClusterName: strings.ReplaceAll(s.scope.Name(), ".", "-"),
 		Lifecycle:   infrav1.ResourceLifecycleOwned,
 		Role:        pointer.StringPtr(scope.Role()),
 		// TODO(vincepri): Check what needs to be added for the cloud provider label.
@@ -159,9 +162,9 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*compute.Instance, 
 			scope.Region(), *scope.GCPMachine.Spec.Subnet)
 	}
 
-	if s.scope.Network().APIServerAddress == nil {
-		return nil, errors.New("failed to run controlplane, APIServer address not available")
-	}
+	// if s.scope.Network().APIServerAddress == nil {
+	// 	return nil, errors.New("failed to run controlplane, APIServer address not available")
+	// }
 
 	log.Info("Running instance")
 	out, err := s.runInstance(input)

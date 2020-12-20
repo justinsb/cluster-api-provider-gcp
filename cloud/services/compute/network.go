@@ -18,8 +18,10 @@ package compute
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"google.golang.org/api/compute/v1"
+	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-gcp/api/v1alpha3"
@@ -34,6 +36,7 @@ func (s *Service) ReconcileNetwork() error {
 	network, err := s.networks.Get(s.scope.Project(), spec.Name).Do()
 	autoCreateCloudNat := false
 	if gcperrors.IsNotFound(err) {
+		klog.Fatalf("TODO: networkRef")
 		autoCreateCloudNat = true
 		op, err := s.networks.Insert(s.scope.Project(), spec).Do()
 		if err != nil {
